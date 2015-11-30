@@ -11,7 +11,8 @@
     "sizex" : 64,
     "sizey" :64,
     "nbanim" : 16,
-    "animationstep" : 4
+    "animationstep" : 4,
+    "breakstep" : 50
   },
   {
     "name" : "persofille",
@@ -24,7 +25,8 @@
     "sizex" : 64,
     "sizey" :64,
     "nbanim" : 12,
-    "animationstep" : 3
+    "animationstep" : 3,
+    "breakstep" : 50
   },
   {
     "name" : "rose",
@@ -37,7 +39,8 @@
     "sizex" : 64,
     "sizey" :64,
     "nbanim" : 12,
-    "animationstep" : 3
+    "animationstep" : 3,
+    "breakstep" : 50
   },
   {
     "name" : "malepirate",
@@ -50,7 +53,8 @@
     "sizex" : 32,
     "sizey" :48,
     "nbanim" : 16,
-    "animationstep" : 4
+    "animationstep" : 4,
+    "breakstep" : 50
   }
   ]
 }

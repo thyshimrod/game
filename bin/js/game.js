@@ -1,8 +1,7 @@
 var __extends = (this && this.__extends) || function (d, b) {
     for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
     function __() { this.constructor = d; }
-    __.prototype = b.prototype;
-    d.prototype = new __();
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
 var Itsis;
 (function (Itsis) {
@@ -14,18 +13,16 @@ var Itsis;
         Boot.prototype.preload = function () {
             this.load.image('preloadBar', 'assets/images/preloader_progressbar.png');
             this.load.image('problem', 'assets/images/headache-32.png');
+            this.load.image('breaktime', 'assets/images/fun64.png');
             this.game.load.json('guiobj', 'assets/gui/guiobj.json');
             this.game.load.json('missions', 'assets/missions/mission.json');
         };
         Boot.prototype.create = function () {
-            //  Unless you specifically need to support multitouch I would recommend setting this to 1
             this.input.maxPointers = 1;
-            //  Phaser will automatically pause if the browser tab the game is in loses focus. You can disable that here:
             this.stage.disableVisibilityChange = true;
             var gameWidth = 1600;
             var gameHeight = 900;
             if (this.game.device.desktop) {
-                //  If you have any desktop specific settings, they can go in here
                 this.game.scale.maxWidth = gameWidth;
                 this.game.scale.maxHeight = gameHeight;
                 this.game.scale.pageAlignHorizontally = true;
@@ -102,11 +99,15 @@ var Itsis;
                     this.endurance = this.enduranceMax;
                     this.productivity = ch.productivity;
                     this.motivation = ch.motivation;
+                    this.breakstep = ch.breakstep;
                     this.entree = this.findObjInOS("entree");
                     this.sprite = isoPlugin.addIsoSprite(this.entree.sprite.isoX, this.entree.sprite.isoY, 0, name, 0, group);
                     this.problemSprite = game.add.sprite(0, -38, "problem");
                     this.problemSprite.visible = false;
                     this.sprite.addChild(this.problemSprite);
+                    this.breakTimeSprite = game.add.sprite(0, -38, "breaktime");
+                    this.breakTimeSprite.visible = false;
+                    this.sprite.addChild(this.breakTimeSprite);
                     this.arcade = new Phaser.Plugin.Isometric.Arcade(game);
                     this.arcade.setBoundsToWorld();
                     this.arcade.enable(this.sprite);
@@ -140,7 +141,6 @@ var Itsis;
             this.state = State.home;
             this.speed = 200;
             this.locationToGo = null;
-            // console
             CharacterOS.listOfCharacter.push(this);
             this.id = CharacterOS.listOfCharacter.length;
         }
@@ -176,7 +176,6 @@ var Itsis;
             if (this.path.length > 0) {
                 var posx = this.path[0].x * 38;
                 var posy = this.path[0].y * 38;
-                // let width=this.locationToGo.width/2;
                 var width = 16;
                 var endX = 0;
                 var endY = 0;
@@ -255,7 +254,6 @@ var Itsis;
             }
         };
         CharacterOS.prototype.updateAtHome = function (timeInOpenSpace) {
-            // let entree = null;
             if (timeInOpenSpace > this.startingHour && timeInOpenSpace < this.endingHour) {
                 if (this.entree == null) {
                     this.entree = this.findObjInOS("entree");
@@ -264,7 +262,6 @@ var Itsis;
                     this.sprite.visible = true;
                     this.sprite.x = this.entree.sprite.isoX;
                     this.sprite.y = this.entree.sprite.isoY;
-                    // console.log(this.sprite);
                     this.state = State.goToDesk;
                 }
             }
@@ -330,7 +327,6 @@ var Itsis;
                 }
             }
         };
-        //At end
         CharacterOS.prototype.updateWorking = function (timeInOpenSpace, ticks) {
             if (timeInOpenSpace > this.endingHour) {
                 this.state = State.goToExit;
@@ -346,6 +342,12 @@ var Itsis;
                         }
                         else {
                             Itsis.Mission.instance.currentProductivityProgression += Math.round(this.productivity * dt);
+                            this.motivation = this.motivation - 10;
+                            console.log(this.motivation);
+                            if (this.motivation <= this.breakstep) {
+                                this.breakTimeSprite.visible = true;
+                                this.state = State.breaktime;
+                            }
                         }
                         this.lastUpdate = ticks;
                     }
@@ -354,8 +356,6 @@ var Itsis;
                     this.lastUpdate = ticks;
                 }
             }
-            // TODO : gestion des temps de pause
-            // TODO : gestion du lunch time
         };
         CharacterOS.prototype.updateProblem = function (timeInOpenSpace, ticks) {
             if (timeInOpenSpace > this.endingHour) {
@@ -367,6 +367,22 @@ var Itsis;
                     var val = Math.random();
                     if (val > 0.5) {
                         this.problemSprite.visible = false;
+                        this.state = State.working;
+                    }
+                    this.lastUpdate = ticks;
+                }
+            }
+        };
+        CharacterOS.prototype.updateBreakTime = function (timeInOpenSpace, ticks) {
+            if (timeInOpenSpace > this.endingHour) {
+                this.state = State.goToExit;
+            }
+            else {
+                var dt = ticks - this.lastUpdate;
+                if (dt > 0.1) {
+                    this.motivation += 10;
+                    if (this.motivation > (this.breakstep + 15)) {
+                        this.breakTimeSprite.visible = false;
                         this.state = State.working;
                     }
                     this.lastUpdate = ticks;
@@ -409,6 +425,9 @@ var Itsis;
                     this.updateProblem(timeInOpenSpace, ticks);
                 default:
                     break;
+                case State.breaktime:
+                    this.updateBreakTime(timeInOpenSpace, ticks);
+                    break;
             }
         };
         ;
@@ -429,7 +448,6 @@ var Itsis;
             var background = this.add.sprite(0, 0, 'mainmenu_background');
             background.alpha = 0;
             this.add.tween(background).to({ alpha: 1 }, 2000, Phaser.Easing.Bounce.InOut, true);
-            //Title
             var itsisTextStyle = {
                 font: "bold 72px Arial",
                 fill: "#00f",
@@ -437,7 +455,6 @@ var Itsis;
             };
             var itsisText = this.game.add.text(this.game.world.centerX, this.game.height / 10, "Choose your mission", itsisTextStyle);
             itsisText.anchor.set(0.5);
-            //Buttons
             var buttonTextStyle = {
                 font: "32px Arial",
                 fill: "#f00"
@@ -497,7 +514,6 @@ var Itsis;
             var background = this.add.sprite(0, 0, 'mainmenu_background');
             background.alpha = 0;
             this.add.tween(background).to({ alpha: 1 }, 2000, Phaser.Easing.Bounce.InOut, true);
-            //Title
             var itsisTextStyle = {
                 font: "bold 72px Arial",
                 fill: "#00f",
@@ -505,7 +521,6 @@ var Itsis;
             };
             var itsisText = this.game.add.text(this.game.world.centerX, this.game.height / 10, "Mission is Over", itsisTextStyle);
             itsisText.anchor.set(0.5);
-            //Buttons
             var buttonTextStyle = {
                 font: "32px Arial",
                 fill: "#f00"
@@ -536,14 +551,12 @@ var Itsis;
         __extends(ItsisGame, _super);
         function ItsisGame() {
             _super.call(this, 1600, 900, Phaser.AUTO, 'content', null);
-            // Main Menu
             this.state.add('Boot', Itsis.Boot, true);
             this.state.add('Preloader', Itsis.Preloader, false);
             this.state.add('MainMenu', Itsis.MainMenu, false);
             this.state.add('ChooseMission', Itsis.ChooseMission, false);
             this.state.add("Credits", Itsis.Credits, false);
             this.state.add("EndMission", Itsis.EndMission, false);
-            // Actual game
             this.state.add("Loaderjeu", Itsis.Loaderjeu, false);
             this.state.add("Jeu", Itsis.Jeu, false);
         }
@@ -562,22 +575,15 @@ var Itsis;
             this.listOfTiles = [];
         }
         Jeu.prototype.preload = function () {
-            // Add and enable the plug-in.
             this.isoPlugin = new Phaser.Plugin.Isometric(this.game);
             this.game.plugins.add(this.isoPlugin);
             this.isoPlugin.projector.anchor.setTo(0.5, 0.2);
-            // tihs.guiContainer= new Object[10];
             this.game.physics.startSystem(Phaser.Plugin.Isometric.ISOARCADE);
-            // Load assets & level data
             this.levelJSON = this.game.cache.getJSON('level');
             this.charJSON = this.game.cache.getJSON('characters');
             this.sceneryJSON = this.game.cache.getJSON('scenery');
-            // Load level images
-            // Load floor
             this.game.load.image('floor', 'assets/scenery/' + this.levelJSON.openSpace.floor);
             this.game.load.image('entree', 'assets/scenery/tile_entree.png');
-            // Load assets
-            // Retrieve image and image type
             for (var _i = 0, _a = this.charJSON.characters; _i < _a.length; _i++) {
                 var ch = _a[_i];
                 this.load.spritesheet(ch.name, ch.sprite, ch.sizex, ch.sizey, ch.nbanim);
@@ -590,13 +596,10 @@ var Itsis;
                     if (scen.toString() == idObj) {
                         var sceneryInfo = this.sceneryJSON[scen][0];
                         var urlObj = 'assets/scenery/' + sceneryInfo.url;
-                        // Load image according to image typpe
                         if (sceneryInfo.spritetype == "spritesheet") {
-                            // Case Spritesheet
                             this.game.load.spritesheet(idObj, urlObj, sceneryInfo.width, sceneryInfo.height);
                         }
                         else {
-                            // Case single image
                             this.game.load.image(idObj, urlObj);
                         }
                     }
@@ -605,8 +608,6 @@ var Itsis;
         };
         Jeu.prototype.create = function () {
             EZGUI.tilingRenderer = this.game.renderer;
-            //   var guiObj = this.game.cache.getJSON('guiobj')guiObj ;
-            //
             var persoGuiJSON = this.game.cache.getJSON('persogui');
             var listOfGui = new Array(10);
             EZGUI.Theme.load(['./assets/gui/kenney-theme/kenney-theme.json'], function () {
@@ -631,13 +632,9 @@ var Itsis;
             this.but = this.game.add.text(200, 0, "hello", style);
             this.lastTicksHour = this.game.time.time;
             this.actualDate = 7.00;
-            // Create groups for assets
             this.floorGroup = this.game.add.group();
             this.decorGroup = this.game.add.group();
-            // Floor building
             this.spawnTilesFloor(this.levelJSON.openSpace.sizex, this.levelJSON.openSpace.sizey);
-            // Sprite in openspace
-            // Creation
             for (var _i = 0, _a = this.levelJSON.openSpace.objInOpenSpace; _i < _a.length; _i++) {
                 var obj = _a[_i];
                 var idObj = obj.id;
@@ -677,14 +674,12 @@ var Itsis;
                     }
                 }
             }
-            // Drawing
             for (var _b = 0, _c = Itsis.ObjInOpenSpace.listOfObj; _b < _c.length; _b++) {
                 var objToOpenspace = _c[_b];
                 objToOpenspace.sprite = this.isoPlugin.addIsoSprite(objToOpenspace.locationX, objToOpenspace.locationY, 0, objToOpenspace.id, objToOpenspace.frame, this.decorGroup);
                 objToOpenspace.sprite.anchor.set(0.5);
                 objToOpenspace.sprite.inputEnabled = true;
                 objToOpenspace.sprite.input.enableDrag();
-                //objToOpenspace.sprite.events.onDragStart.add(dragStrat, this);
                 objToOpenspace.sprite.events.onDragStop.add(dragStop, this);
             }
             var tempObjEntree = new Itsis.ObjInOpenSpace();
@@ -714,8 +709,6 @@ var Itsis;
                     this.mapOpenSpace[x][y] = 1;
                 }
             }
-            // Construction de la map de l'openspace servant plus tard dans les astar (pathfinding) des CharacterOS
-            // centralisé ici pour l'instant
             for (var _d = 0, _e = Itsis.ObjInOpenSpace.listOfObj; _d < _e.length; _d++) {
                 var it = _e[_d];
                 var isoX = it.sprite.isoX / 38;
@@ -740,7 +733,6 @@ var Itsis;
                     this.mapOpenSpace[isoX][isoY] = 0;
                 }
             }
-            // console.log(this.mapOpenSpace);
         };
         Jeu.prototype.spawnCube = function () {
             var cube = this.isoPlugin.addIsoSprite(38, 38, 0, 'cube', 0, this.cubeGroup);
@@ -782,12 +774,11 @@ var Itsis;
         };
         Jeu.prototype.render = function () {
             this.formatHour();
-            // console.log(CharacterOS.listOfCharacter);
             for (var _i = 0, _a = Itsis.CharacterOS.listOfCharacter; _i < _a.length; _i++) {
                 var itChar = _a[_i];
                 itChar.update(this.actualDate, this.mapOpenSpace, this.ticks);
             }
-            this.but.setText(Itsis.Mission.instance.currentProductivityProgression + " Produits / " + Itsis.Mission.instance.aproduire + " a faire");
+            this.but.setText(Itsis.Mission.instance.currentProductivityProgression + " Produits / " + Itsis.Mission.instance.aproduire + " a faire#");
             if (this.nbDay < Itsis.Mission.instance.timeTarget || Itsis.Mission.instance.timeTarget == -1) {
                 if (Itsis.Mission.instance.currentProductivityProgression >= Itsis.Mission.instance.aproduire) {
                     Itsis.Mission.instance.state = Itsis.MissionStatus.success;
@@ -811,12 +802,9 @@ var Itsis;
             _super.apply(this, arguments);
         }
         Loaderjeu.prototype.preload = function () {
-            //Json scenery declaration
             this.game.load.json('scenery', 'assets/scenery/scenery.json');
             this.game.load.json('characters', 'assets/characters/characters.json');
             this.game.load.json('persogui', 'assets/gui/perso.json');
-            // this.game.load.json('wingui', 'assets/gui/winpopup.json');
-            //Json level data
             this.game.load.json('level', 'assets/maps/level_1.json');
         };
         Loaderjeu.prototype.create = function () {
@@ -842,11 +830,9 @@ var Itsis;
             }
         };
         MainMenu.prototype.create = function () {
-            //Background
             var background = this.add.sprite(0, 0, 'mainmenu_background');
             background.alpha = 0;
             this.add.tween(background).to({ alpha: 1 }, 2000, Phaser.Easing.Bounce.InOut, true);
-            //Title
             var itsisTextStyle = {
                 font: "bold 72px Arial",
                 fill: "#f00",
@@ -854,7 +840,6 @@ var Itsis;
             };
             var itsisText = this.game.add.text(this.game.world.centerX, this.game.height / 10, "ITSIS\nIT Services Industry Simulator", itsisTextStyle);
             itsisText.anchor.set(0.5);
-            //Buttons
             var buttonTextStyle = {
                 font: "32px Arial",
                 fill: "#f00"
@@ -867,24 +852,11 @@ var Itsis;
             creditsButton.anchor.set(0.5);
             var creditsButtonText = this.game.add.text(this.game.world.centerX, 6 * this.game.height / 10, "Credits", buttonTextStyle);
             creditsButtonText.anchor.set(0.5);
-            //   EZGUI.renderer = this.game.renderer;
-            //   var guiObj = this.game.cache.getJSON('guiobj')guiObj ;
-            //
-            //  EZGUI.Theme.load(['./assets/gui/kenney-theme/kenney-theme.json'], function () {
-            //
-            //      var guiContainer = EZGUI.create(guiObj , 'kenney');
-            //
-            //      EZGUI.components.btn1.on('click', function (event) {
-            //              console.log('clicked', event);
-            //          });
-            //
-            //  });
         };
         MainMenu.prototype.startCredits = function () {
             this.game.state.start("Credits", true, false);
         };
         MainMenu.prototype.startPlay = function () {
-            // this.game.state.start("Loaderjeu", true, false);
             this.game.state.start("ChooseMission", true, false);
         };
         return MainMenu;
@@ -953,12 +925,10 @@ var Itsis;
             _super.apply(this, arguments);
         }
         Preloader.prototype.preload = function () {
-            //  Set-up our preloader sprite
             this.preloadBar = this.add.sprite(0, 0, 'preloadBar');
             this.preloadBar.x = this.game.world.centerX - this.preloadBar.texture.width / 2;
             this.preloadBar.y = this.game.world.centerY - this.preloadBar.texture.height / 2;
             this.load.setPreloadSprite(this.preloadBar);
-            //  Load our assets
             this.load.image('mainmenu_background', 'assets/images/mainmenu_background.jpg');
             this.game.load.atlas('mainmenu_button', 'assets/buttons/mainmenu_button.png', 'assets/buttons/mainmenu_button.json');
         };

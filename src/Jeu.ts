@@ -277,7 +277,7 @@ module Itsis {
           for (let itChar of CharacterOS.listOfCharacter){
             itChar.update(this.actualDate,this.mapOpenSpace,this.ticks);
           }
-          this.but.setText(Mission.instance.currentProductivityProgression + " Produits / " + Mission.instance.aproduire +" a faire");
+          this.but.setText(Mission.instance.currentProductivityProgression + " Produits / " + Mission.instance.aproduire +" a faire#");
           if (this.nbDay<Mission.instance.timeTarget || Mission.instance.timeTarget == -1){
             if (Mission.instance.currentProductivityProgression >= Mission.instance.aproduire){
 

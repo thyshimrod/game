@@ -13,7 +13,8 @@ module Itsis{
 			breaktime = 3,
 			goToDesk = 4,
 			goToExit = 5,
-			problem = 6
+			problem = 6,
+
 		};
 	class LocationToGo{
 		x : number;
@@ -32,9 +33,11 @@ module Itsis{
 		enduranceMax : number;
 		productivity : number; // base 100
 		motivation : number; // base 100
+		breakstep : number;
 		state : number;
         speed: number;
         problemSprite: Phaser.Sprite;
+		breakTimeSprite : Phaser.Sprite;
         sprite: Phaser.Plugin.Isometric.IsoSprite;
 		locationToGo : LocationToGo;
 		desk : ObjInOpenSpace = null;
@@ -58,15 +61,19 @@ module Itsis{
 					this.endurance = this.enduranceMax;
 					this.productivity = ch.productivity;
 					this.motivation = ch.motivation;
-
+					this.breakstep = ch.breakstep;
 					this.entree = this.findObjInOS("entree");
-                    this.sprite = <Phaser.Plugin.Isometric.IsoSprite> isoPlugin.addIsoSprite(this.entree.sprite.isoX,this.entree.sprite.isoY, 0, name, 0, group);
+          this.sprite = <Phaser.Plugin.Isometric.IsoSprite> isoPlugin.addIsoSprite(this.entree.sprite.isoX,this.entree.sprite.isoY, 0, name, 0, group);
 					this.problemSprite = game.add.sprite(0,-38,"problem");
 					this.problemSprite.visible=false;
-                    this.sprite.addChild(this.problemSprite);
-                    this.arcade = new Phaser.Plugin.Isometric.Arcade(game);
-                    this.arcade.setBoundsToWorld();
-                    this.arcade.enable(this.sprite);
+          this.sprite.addChild(this.problemSprite);
+					this.breakTimeSprite = game.add.sprite(0,-38,"breaktime");
+					this.breakTimeSprite.visible=false;
+          this.sprite.addChild(this.breakTimeSprite);
+
+          this.arcade = new Phaser.Plugin.Isometric.Arcade(game);
+          this.arcade.setBoundsToWorld();
+          this.arcade.enable(this.sprite);
 					this.sprite.anchor.set(0.5);
 
 					this.sprite.frame = 0;
@@ -315,6 +322,12 @@ module Itsis{
 							this.problemSprite.visible=true;
 						}else{
 								Mission.instance.currentProductivityProgression+=Math.round(this.productivity * dt);
+								this.motivation=this.motivation-10;
+								console.log(this.motivation);
+								if (this.motivation<=this.breakstep){
+									this.breakTimeSprite.visible=true;
+									this.state=State.breaktime;
+								}
 						}
 
 						this.lastUpdate = ticks;
@@ -342,6 +355,26 @@ module Itsis{
 						this.problemSprite.visible=false;
 						this.state = State.working;
 					}
+					this.lastUpdate = ticks;
+				}
+
+			}
+
+		}
+
+		updateBreakTime(timeInOpenSpace : number, ticks : number){
+			if (timeInOpenSpace>this.endingHour){
+				this.state = State.goToExit;
+				// this.sprite.visible=false;
+			}else{
+				let dt = ticks - this.lastUpdate;
+				if (dt > 0.1){
+					this.motivation+=10;
+					if (this.motivation > (this.breakstep+15)){
+						this.breakTimeSprite.visible=false;
+						this.state = State.working;
+					}
+
 					this.lastUpdate = ticks;
 				}
 
@@ -385,6 +418,9 @@ module Itsis{
 				case State.problem:
 					this.updateProblem(timeInOpenSpace,ticks);
 				default:
+				break;
+				case State.breaktime:
+					this.updateBreakTime(timeInOpenSpace,ticks);
 				break;
 			}
 		};
